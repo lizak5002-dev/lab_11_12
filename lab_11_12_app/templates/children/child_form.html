@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ title }} - Детский сад{% endblock %}
+
+{% block page_title %}
+    <i class="bi bi-person-plus me-2"></i>{{ title }}
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-body p-4">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <!-- Основная информация -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-info-circle me-2"></i>Основная информация
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    {{ form.last_name|as_crispy_field }}
+                                </div>
+                                <div class="col-md-4">
+                                    {{ form.first_name|as_crispy_field }}
+                                </div>
+                                <div class="col-md-4">
+                                    {{ form.second_name|as_crispy_field }}
+                                </div>
+                            </div>
+                            
+                            <div class="row mt-3">
+                                <div class="col-md-4">
+                                    {{ form.gender|as_crispy_field }}
+                                </div>
+                                <div class="col-md-4">
+                                    {{ form.birth_date|as_crispy_field }}
+                                </div>
+                                <div class="col-md-4">
+                                    {{ form.start_date|as_crispy_field }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Группа и дополнительные данные -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-collection me-2"></i>Группа и контакты
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    {{ form.group|as_crispy_field }}
+                                </div>
+                                <div class="col-md-6">
+                                    {{ form.address|as_crispy_field }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Медицинская информация -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-warning">
+                            <h5 class="mb-0">
+                                <i class="bi bi-heart-pulse me-2"></i>Медицинская информация
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {{ form.allergies|as_crispy_field }}
+                            <small class="text-muted">Укажите аллергии, противопоказания и другую медицинскую информацию</small>
+                        </div>
+                    </div>
+
+                    <!-- Кнопки действий -->
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{% url 'child_list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>Назад к списку
+                        </a>
+                        <div class="btn-group">
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-check-circle me-2"></i>Сохранить
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+
+{% block title %}Связи родитель-ребенок{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-link-45deg"></i> Связи родитель-ребенок</h2>
+    {% if user.is_superuser %}
+    <a href="{% url 'parentchild_create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Добавить связь
+    </a>
+    {% endif %}
+</div>
+
+<!-- Фильтры -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+                       
+            <!-- Поиск -->
+            <div class="col-md-6">
+                <label class="form-label">Поиск:</label>
+                <div class="input-group">
+                    <input type="text" name="search" class="form-control" 
+                           placeholder="Фамилия или имя родителя/ребенка..." value="{{ request.GET.search }}">
+                    <button class="btn btn-outline-primary" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Сортировка -->
+            <div class="col-md-3">
+                <label class="form-label">Сортировка:</label>
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" 
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-sort-down"></i> {{ current_sort_text }}
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li>
+                            <a class="dropdown-item" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}sort=parent__last_name&order=asc">
+                                <i class="bi bi-sort-alpha-down"></i> По фамилии родителя (А-Я)
+                                {% if sort_by == 'parent__last_name' and sort_order == 'asc' %}
+                                    <i class="bi bi-check float-end"></i>
+                                {% endif %}
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}sort=parent__last_name&order=desc">
+                                <i class="bi bi-sort-alpha-up"></i> По фамилии родителя (Я-А)
+                                {% if sort_by == 'parent__last_name' and sort_order == 'desc' %}
+                                    <i class="bi bi-check float-end"></i>
+                                {% endif %}
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}sort=child__last_name&order=asc">
+                                <i class="bi bi-sort-alpha-down"></i> По фамилии ребенка (А-Я)
+                                {% if sort_by == 'child__last_name' and sort_order == 'asc' %}
+                                    <i class="bi bi-check float-end"></i>
+                                {% endif %}
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}sort=child__last_name&order=desc">
+                                <i class="bi bi-sort-alpha-up"></i> По фамилии ребенка (Я-А)
+                                {% if sort_by == 'child__last_name' and sort_order == 'desc' %}
+                                    <i class="bi bi-check float-end"></i>
+                                {% endif %}
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}sort=relationship&order=asc">
+                                <i class="bi bi-sort-alpha-down"></i> По типу связи (А-Я)
+                                {% if sort_by == 'relationship' and sort_order == 'asc' %}
+                                    <i class="bi bi-check float-end"></i>
+                                {% endif %}
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}sort=relationship&order=desc">
+                                <i class="bi bi-sort-alpha-up"></i> По типу связи (Я-А)
+                                {% if sort_by == 'relationship' and sort_order == 'desc' %}
+                                    <i class="bi bi-check float-end"></i>
+                                {% endif %}
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Кнопка сброса -->
+            <div class="col-md-3">
+                <label class="form-label">&nbsp;</label>
+                <a href="{% url 'parentchild_list' %}" class="btn btn-outline-secondary w-100">
+                    <i class="bi bi-x-circle"></i> Сбросить фильтры
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Сообщения -->
+{% if messages %}
+<div class="alert-container">
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Таблица -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Родитель</th>
+                        <th>Ребенок</th>
+                        <th>Степень родства</th>
+                        <th class="text-center">Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rel in relationships %}
+                    <tr>
+                        <td>
+                            <strong>{{ rel.parent.last_name }} {{ rel.parent.first_name }}</strong>
+                            {% if rel.parent.second_name %}
+                                {{ rel.parent.second_name }}
+                            {% endif %}
+                            <br>
+                            <small class="text-muted">
+                                <i class="bi bi-telephone"></i> {{ rel.parent.phone_number|default:"тел. не указан" }}
+                            </small>
+                        </td>
+
+                        <td>
+                            <strong>{{ rel.child.last_name }} {{ rel.child.first_name }}</strong>
+                            {% if rel.child.second_name %}
+                                {{ rel.child.second_name }}
+                            {% endif %}
+                            <br>
+                            <small class="text-muted">
+                                Группа: {{ rel.child.group.group_name|default:"не назначена" }}
+                            </small>
+                        </td>
+
+                        <td>
+                            <span class="badge bg-primary">{{ rel.relationship }}</span>
+                        </td>
+                        
+                        <td class="text-center">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{% url 'parentchild_edit' rel.pk %}" class="btn btn-warning" 
+                                   title="Редактировать">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <form method="post" action="{% url 'parentchild_delete' rel.pk %}" 
+                                    class="d-inline" onsubmit="return confirm('Удалить связь между {{ rel.parent.last_name }} и {{ rel.child.last_name }}?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline-danger" title="Удалить">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-4">
+                            <i class="bi bi-people display-6"></i>
+                            <p class="mt-2">Связи родитель-ребенок не найдены</p>
+                            {% if user.is_superuser %}
+                            <a href="{% url 'parentchild_create' %}" class="btn btn-primary mt-2">
+                                <i class="bi bi-plus-circle"></i> Добавить первую связь
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        {% if relationships.paginator %}
+        <nav aria-label="Навигация">
+            <ul class="pagination justify-content-center">
+                {% if relationships.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ relationships.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if sort_by %}&sort={{ sort_by }}&order={{ sort_order }}{% endif %}">
+                        <i class="bi bi-chevron-left"></i> Назад
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for num in relationships.paginator.page_range %}
+                    {% if relationships.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > relationships.number|add:'-3' and num < relationships.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if sort_by %}&sort={{ sort_by }}&order={{ sort_order }}{% endif %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if relationships.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ relationships.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if sort_by %}&sort={{ sort_by }}&order={{ sort_order }}{% endif %}">
+                        Вперед <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

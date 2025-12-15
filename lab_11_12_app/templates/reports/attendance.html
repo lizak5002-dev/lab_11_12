@@ -1,0 +1,387 @@
+{% extends 'base.html' %}
+
+{% block title %}Отчет по посещаемости - Детский сад{% endblock %}
+
+{% block page_title %}
+    <i class="bi bi-calendar-check me-2"></i>Отчет по посещаемости
+{% endblock %}
+
+{% block page_actions %}
+    <div class="btn-group">
+        <button type="button" class="btn btn-danger" id="generatePdfBtn">
+            <i class="bi bi-file-pdf me-2"></i>PDF
+        </button>
+        <button type="button" class="btn btn-success" id="generateExcelBtn">
+            <i class="bi bi-file-excel me-2"></i>Excel
+        </button>
+        <button onclick="window.print()" class="btn btn-secondary">
+            <i class="bi bi-printer me-2"></i>Печать
+        </button>
+    </div>
+{% endblock %}
+
+{% block content %}
+<!-- Период отчета -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3" id="reportForm">
+            {% csrf_token %}
+            <div class="col-md-2">
+                <label class="form-label fw-bold">Месяц:</label>
+                <select name="month" class="form-select" id="monthSelect">
+                    <option value="">Все месяцы</option>
+                    {% for month_num, month_name in months %}
+                        <option value="{{ month_num }}" {% if request.GET.month == month_num|stringformat:"s" %}selected{% endif %}>
+                            {{ month_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold">Год:</label>
+                <select name="year" class="form-select" id="yearSelect">
+                    <option value="">Все годы</option>
+                    {% for year in years %}
+                        <option value="{{ year }}" {% if request.GET.year == year|stringformat:"s" %}selected{% endif %}>
+                            {{ year }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold">Группа:</label>
+                <select name="group" class="form-select" id="groupSelect">
+                    <option value="">Все группы</option>
+                    {% for group in all_groups %}
+                        <option value="{{ group.pk }}" {% if request.GET.group == group.pk|stringformat:"s" %}selected{% endif %}>
+                            {{ group.group_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <div class="d-grid w-100">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-funnel me-1"></i>Сформировать
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-4 d-flex justify-content-end">
+                <div class="btn-group" role="group">
+                    <!-- Кнопка для PDF -->
+                    <button type="button" class="btn btn-danger" id="generatePdfBtnInline">
+                        <i class="bi bi-file-pdf me-1"></i>PDF
+                    </button>
+                    <!-- Кнопка для Excel -->
+                    <button type="button" class="btn btn-success" id="generateExcelBtnInline">
+                        <i class="bi bi-file-excel me-1"></i>Excel
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Сводная статистика -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-clipboard-data me-2"></i>Сводная статистика
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-2">
+                        <div class="p-3 bg-light rounded">
+                            <h3 class="text-primary mb-0">{{ total_days }}</h3>
+                            <p class="text-muted mb-0">Дней в отчете</p>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="p-3 bg-light rounded">
+                            <h3 class="text-success mb-0">{{ total_present }}</h3>
+                            <p class="text-muted mb-0">Присутствовали</p>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="p-3 bg-light rounded">
+                            <h3 class="text-danger mb-0">{{ total_absent }}</h3>
+                            <p class="text-muted mb-0">Отсутствовали</p>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="p-3 bg-light rounded">
+                            <h3 class="text-info mb-0">{{ avg_attendance|floatformat:1 }}%</h3>
+                            <p class="text-muted mb-0">Средняя посещаемость</p>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="p-3 bg-light rounded">
+                            <h3 class="text-warning mb-0">{{ best_group|default:"Нет данных" }}</h3>
+                            <p class="text-muted mb-0">Лучшая группа</p>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="p-3 bg-light rounded">
+                            <h3 class="text-secondary mb-0">{{ best_day.date|date:"d.m.Y" }}</h3>
+                            <p class="text-muted mb-0">Лучший день</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Графики -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-pie-chart me-2"></i>Соотношение посещаемости
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="attendancePieChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-bar-chart me-2"></i>Посещаемость по группам
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="groupBarChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Детальный отчет -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="bi bi-table me-2"></i>Детализированный отчет
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if stats %}
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th>Месяц</th>
+                        <th>Присутствовали</th>
+                        <th>Отсутствовали</th>
+                        <th>Всего</th>
+                        <th>Процент посещаемости</th>
+                        <th>Тренд</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stat in stats %}
+                    <tr>
+                        <td>
+                            <strong>{{ stat.month|date:"F Y" }}</strong>
+                        </td>
+                        <td class="text-success">
+                            <strong>{{ stat.present_count }}</strong>
+                        </td>
+                        <td class="text-danger">
+                            <strong>{{ stat.absent_count }}</strong>
+                        </td>
+                        <td>
+                            <span class="badge bg-primary">{{ stat.total_count }}</span>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="progress flex-grow-1 me-2" style="height: 20px;">
+                                    <div class="progress-bar {% if stat.percentage >= 90 %}bg-success{% elif stat.percentage >= 70 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                         role="progressbar" 
+                                         style="width: {{ stat.percentage }}%">
+                                    </div>
+                                </div>
+                                <span class="fw-bold">{{ stat.percentage|floatformat:1 }}%</span>
+                            </div>
+                        </td>
+                        <td>
+                            {% if stat.trend == 'up' %}
+                                <span class="badge bg-success">
+                                    <i class="bi bi-arrow-up"></i> Рост
+                                </span>
+                            {% elif stat.trend == 'down' %}
+                                <span class="badge bg-danger">
+                                    <i class="bi bi-arrow-down"></i> Спад
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary">
+                                    <i class="bi bi-dash"></i> Без изменений
+                                </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="bi bi-calendar-x display-4 text-muted"></i>
+            <h4 class="mt-3">Данные за выбранный период отсутствуют</h4>
+            <p class="text-muted">Измените параметры фильтрации</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Дата формирования -->
+<div class="mt-4 text-center text-muted">
+    <hr>
+    <p>
+        <small>
+            Отчет сформирован: {% now "d.m.Y H:i" %} | 
+            Пользователь: {{ user.username }} | 
+            Система учета детского сада
+        </small>
+    </p>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Круговой график посещаемости
+    const pieCtx = document.getElementById('attendancePieChart');
+    if (pieCtx) {
+        new Chart(pieCtx.getContext('2d'), {
+            type: 'pie',
+            data: {
+                labels: ['Присутствовали', 'Отсутствовали'],
+                datasets: [{
+                    data: [{{ total_present|default:0 }}, {{ total_absent|default:0 }}],
+                    backgroundColor: ['#36A2EB', '#FF6384']
+                }]
+            }
+        });
+    }
+    
+    // Столбчатый график по группам
+    const barCtx = document.getElementById('groupBarChart');
+    if (barCtx) {
+        const groupLabels = [];
+        const groupPercentages = [];
+        
+        {% for group_stat in groups_stats %}
+            groupLabels.push('{{ group_stat.group_name|escapejs }}');
+            groupPercentages.push({{ group_stat.percentage|default:0|floatformat:1 }});
+        {% endfor %}
+        
+        if (groupLabels.length > 0) {
+            new Chart(barCtx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: groupLabels,
+                    datasets: [{
+                        label: 'Посещаемость %',
+                        data: groupPercentages,
+                        backgroundColor: '#4BC0C0'
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    // Функция для запуска генерации отчета
+    function generateReport(format) {
+        const month = document.getElementById('monthSelect').value;
+        const year = document.getElementById('yearSelect').value;
+        const group = document.getElementById('groupSelect').value;
+        
+        // Показываем индикатор загрузки
+        const button = format === 'pdf' ? 
+            (document.getElementById('generatePdfBtn') || document.getElementById('generatePdfBtnInline')) : 
+            (document.getElementById('generateExcelBtn') || document.getElementById('generateExcelBtnInline'));
+        
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Генерация...';
+        button.disabled = true;
+        
+        // Собираем URL с параметрами
+        let url = '';
+        if (format === 'pdf') {
+            url = '{% url "report_attendance_pdf" %}';
+        } else if (format === 'excel') {
+            url = '{% url "report_attendance_excel" %}';
+        }
+        
+        const params = new URLSearchParams();
+        if (month) params.append('month', month);
+        if (year) params.append('year', year);
+        if (group) params.append('group', group);
+        
+        const queryString = params.toString();
+        if (queryString) {
+            url += '?' + queryString;
+        }
+        
+        // Просто перенаправляем на URL скачивания (без AJAX для простоты)
+        window.location.href = url;
+        
+        // Восстанавливаем кнопку через 2 секунды (на случай, если скачивание не началось)
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }, 2000);
+    }
+
+    // Обработчики для верхних кнопок
+    const pdfBtn = document.getElementById('generatePdfBtn');
+    if (pdfBtn) {
+        pdfBtn.addEventListener('click', function() {
+            generateReport('pdf');
+        });
+    }
+    
+    const excelBtn = document.getElementById('generateExcelBtn');
+    if (excelBtn) {
+        excelBtn.addEventListener('click', function() {
+            generateReport('excel');
+        });
+    }
+    
+    // Обработчики для кнопок в форме
+    const pdfBtnInline = document.getElementById('generatePdfBtnInline');
+    if (pdfBtnInline) {
+        pdfBtnInline.addEventListener('click', function() {
+            generateReport('pdf');
+        });
+    }
+    
+    const excelBtnInline = document.getElementById('generateExcelBtnInline');
+    if (excelBtnInline) {
+        excelBtnInline.addEventListener('click', function() {
+            generateReport('excel');
+        });
+    }
+});
+</script>
+{% endblock %}

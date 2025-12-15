@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 text-center py-5">
+        <h1 class="display-4">Система учета детского сада</h1>
+        <p class="lead">Управление детьми, посещаемостью и отчетами</p>
+        
+        {% if not user.is_authenticated %}
+        <div class="mt-4">
+            <a href="{% url 'login' %}" class="btn btn-primary btn-lg me-3">
+                <i class="bi bi-box-arrow-in-right"></i> Войти
+            </a>
+            <a href="{% url 'register' %}" class="btn btn-outline-primary btn-lg">
+                <i class="bi bi-person-plus"></i> Регистрация
+            </a>
+        </div>
+        {% else %}
+        <div class="row mt-5">
+            <div class="col-md-4 mb-3">
+                <div class="card stat-card">
+                    <div class="card-body text-center">
+                        <i class="bi bi-people display-4 text-primary"></i>
+                        <h3>{{ total_children|default:0 }}</h3>
+                        <p class="text-muted">Детей в саду</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="card stat-card">
+                    <div class="card-body text-center">
+                        <i class="bi bi-collection display-4 text-success"></i>
+                        <h3>{{ total_groups|default:0 }}</h3>
+                        <p class="text-muted">Групп</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="card stat-card">
+                    <div class="card-body text-center">
+                        <i class="bi bi-person-badge display-4 text-warning"></i>
+                        <h3>{{ total_teachers|default:0 }}</h3>
+                        <p class="text-muted">Воспитателей</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

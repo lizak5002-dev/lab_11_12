@@ -1,0 +1,328 @@
+{% extends 'base.html' %}
+
+{% block title %}Дашборд - Детский сад{% endblock %}
+
+{% block page_title %}
+    <i class="bi bi-speedometer2 me-2"></i>Дашборд
+{% endblock %}
+
+{% block page_subtitle %}
+    <p class="text-muted mt-1">Статистика и аналитика детского сада</p>
+{% endblock %}
+
+{% block content %}
+<!-- Ключевые метрики -->
+<div class="row mb-4">
+    <div class="col-md-3 col-6 mb-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Всего детей</h6>
+                        <h2 class="mb-0">{{ total_children }}</h2>
+                    </div>
+                    <i class="bi bi-people display-6 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6 mb-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Групп</h6>
+                        <h2 class="mb-0">{{ total_groups }}</h2>
+                    </div>
+                    <i class="bi bi-collection display-6 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6 mb-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Воспитателей</h6>
+                        <h2 class="mb-0">{{ total_teachers }}</h2>
+                    </div>
+                    <i class="bi bi-person-badge display-6 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6 mb-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Посещаемость сегодня</h6>
+                        <h2 class="mb-0">{{ today_attendance.percent|default:"100" }}%</h2>
+                    </div>
+                    <i class="bi bi-calendar-check display-6 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Графики -->
+<div class="row mb-4">
+    <!-- Распределение по группам -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-pie-chart me-2"></i>Распределение детей по группам
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="groupsChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Статистика посещаемости -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-bar-chart me-2"></i>Статистика посещаемости
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="attendanceChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Возрастное распределение и последние посещения -->
+<div class="row">
+    <!-- Возрастное распределение -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-people-fill me-2"></i>Возрастное распределение
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="ageChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Последние посещения -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-clock-history me-2"></i>Последние отметки посещаемости
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    {% for attendance in recent_attendances|slice:":7" %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ attendance.child.last_name }} {{ attendance.child.first_name|first }}.</strong>
+                                <br>
+                                <small class="text-muted">{{ attendance.child.group.group_name }}</small>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge {% if attendance.status == 'присутствовал' %}bg-success{% else %}bg-danger{% endif %}">
+                                    {{ attendance.get_status_display }}
+                                </span>
+                                <br>
+                                <small class="text-muted">{{ attendance.date|date:"d.m.Y" }}</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-calendar-x display-4 text-muted"></i>
+                        <p class="mt-2">Нет данных о посещаемости</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Статистика по месяцам -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="bi bi-graph-up me-2"></i>Посещаемость по месяцам
+        </h5>
+    </div>
+    <div class="card-body">
+        <canvas id="monthlyChart" height="100"></canvas>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Dashboard loaded');
+    
+    // Получаем данные
+    const groupsData = JSON.parse('{{ children_by_group_json|escapejs }}');
+    const attendanceData = JSON.parse('{{ attendance_by_status_json|escapejs }}');
+    const ageData = JSON.parse('{{ age_stats_json|escapejs }}');
+    
+    console.log('Groups data:', groupsData);
+    console.log('Attendance data:', attendanceData);
+    console.log('Age data:', ageData);
+    
+    // 1. График распределения по группам
+    const groupsChartEl = document.getElementById('groupsChart');
+    if (groupsChartEl && groupsData && groupsData.length > 0) {
+        try {
+            const groupsCtx = groupsChartEl.getContext('2d');
+            new Chart(groupsCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: groupsData.map(item => item.group__group_name || 'Без группы'),
+                    datasets: [{
+                        data: groupsData.map(item => item.count || 0),
+                        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+            console.log('Groups chart created');
+        } catch (error) {
+            console.error('Error creating groups chart:', error);
+            groupsChartEl.innerHTML = '<div class="alert alert-warning">Не удалось создать график распределения по группам</div>';
+        }
+    } else {
+        console.warn('No groups data or element not found');
+        if (groupsChartEl) {
+            groupsChartEl.innerHTML = '<div class="alert alert-info">Нет данных для графика распределения по группам</div>';
+        }
+    }
+    
+    // 2. График посещаемости
+    const attendanceChartEl = document.getElementById('attendanceChart');
+    if (attendanceChartEl && attendanceData && attendanceData.length > 0) {
+        try {
+            const attendanceCtx = attendanceChartEl.getContext('2d');
+            new Chart(attendanceCtx, {
+                type: 'bar',
+                data: {
+                    labels: attendanceData.map(item => 
+                        item.status === 'присутствовал' ? 'Присутствовали' : 'Отсутствовали'
+                    ),
+                    datasets: [{
+                        label: 'Количество',
+                        data: attendanceData.map(item => item.count || 0),
+                        backgroundColor: ['#36A2EB', '#FF6384']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+            console.log('Attendance chart created');
+        } catch (error) {
+            console.error('Error creating attendance chart:', error);
+            attendanceChartEl.innerHTML = '<div class="alert alert-warning">Не удалось создать график посещаемости</div>';
+        }
+    } else {
+        console.warn('No attendance data');
+        if (attendanceChartEl) {
+            attendanceChartEl.innerHTML = '<div class="alert alert-info">Нет данных для графика посещаемости</div>';
+        }
+    }
+    
+    // 3. График возрастного распределения
+    const ageChartEl = document.getElementById('ageChart');
+    if (ageChartEl && ageData && ageData.length > 0) {
+        try {
+            const ageCtx = ageChartEl.getContext('2d');
+            new Chart(ageCtx, {
+                type: 'line',
+                data: {
+                    labels: ageData.map(item => item.age + ' лет'),
+                    datasets: [{
+                        label: 'Количество детей',
+                        data: ageData.map(item => item.count || 0),
+                        borderColor: '#36A2EB',
+                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            console.log('Age chart created');
+        } catch (error) {
+            console.error('Error creating age chart:', error);
+            ageChartEl.innerHTML = '<div class="alert alert-warning">Не удалось создать график возрастного распределения</div>';
+        }
+    } else {
+        console.warn('No age data');
+        if (ageChartEl) {
+            ageChartEl.innerHTML = '<div class="alert alert-info">Нет данных для графика возрастного распределения</div>';
+        }
+    }
+    
+    // 4. График по месяцам (статический)
+    const monthlyChartEl = document.getElementById('monthlyChart');
+    if (monthlyChartEl) {
+        try {
+            const monthlyCtx = monthlyChartEl.getContext('2d');
+            new Chart(monthlyCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'],
+                    datasets: [{
+                        label: 'Посещаемость %',
+                        data: [95, 92, 88, 90, 85, 70, 65, 75, 95, 97, 90, 88],
+                        borderColor: '#4BC0C0',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true
+                }
+            });
+            console.log('Monthly chart created');
+        } catch (error) {
+            console.error('Error creating monthly chart:', error);
+        }
+    }
+    
+    console.log('All charts processed');
+});
+</script>
+{% endblock %}

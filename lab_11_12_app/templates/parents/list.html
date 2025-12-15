@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+
+{% block title %}Список родителей{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-people"></i> Список родителей</h2>
+    {% if user.is_superuser %}
+    <a href="{% url 'parent_create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Добавить родителя
+    </a>
+    {% endif %}
+</div>
+
+<!-- Фильтры -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+                       
+            <!-- Поиск -->
+            <div class="col-md-5">
+                <label class="form-label">Поиск:</label>
+                <div class="input-group">
+                    <input type="text" name="search" class="form-control" 
+                           placeholder="Фамилия или имя..." value="{{ request.GET.search }}">
+                    <button class="btn btn-outline-primary" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </div>            
+            
+            <!-- Сортировка -->
+            <div class="col-md-2">
+                <label class="form-label">Сортировка:</label>
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" 
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-sort-down"></i> {{ current_sort_text }}
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li>
+                            <a class="dropdown-item" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}{% if request.GET.group %}group={{ request.GET.group }}&{% endif %}sort=last_name&order=asc">
+                                <i class="bi bi-sort-alpha-down"></i> По фамилии (А-Я)
+                                {% if sort_by == 'last_name' and sort_order == 'asc' %}
+                                    <i class="bi bi-check float-end"></i>
+                                {% endif %}
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}{% if request.GET.group %}group={{ request.GET.group }}&{% endif %}sort=last_name&order=desc">
+                                <i class="bi bi-sort-alpha-up"></i> По фамилии (Я-А)
+                                {% if sort_by == 'last_name' and sort_order == 'desc' %}
+                                    <i class="bi bi-check float-end"></i>
+                                {% endif %}
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Кнопка сброса -->
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <a href="{% url 'parent_list' %}" class="btn btn-outline-secondary w-100">
+                    <i class="bi bi-x-circle"></i> Сбросить
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Таблица -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>ФИО</th>
+                        <th>Номер телефона</th>
+                        <th>Электронная почта</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for parent in parents %}
+                    <tr>
+                        <td>
+                            <strong>{{ parent.last_name }} {{ parent.first_name }}</strong>
+                            {% if parent.second_name %}<br><small>{{ parent.second_name }}</small>{% endif %}
+                        </td>
+
+                        <td>{{ parent.phone_number }}</td>
+
+                        <td>{{ parent.email }}</td>
+                        
+                        <td>
+                            {% if user.is_superuser %}
+                            <a href="{% url 'parent_edit' parent.pk %}" class="btn btn-sm btn-warning" 
+                               title="Редактировать">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form method="post" action="{% url 'parent_delete' parent.pk %}" 
+                                class="d-inline" onsubmit="return confirm('Удалить родителя?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-outline-danger" title="Удалить">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                            
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            <i class="bi bi-emoji-frown display-6"></i>
+                            <p class="mt-2">Родители не найдены</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        {% if parent.paginator %}
+        <nav aria-label="Навигация">
+            <ul class="pagination justify-content-center">
+                {% if parent.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ parent.previous_page_number }}&{{ request.GET.urlencode|slice:'8:' }}">
+                        Назад
+                    </a>
+                </li>
+                {% endif %}
+                
+                <li class="page-item disabled">
+                    <span class="page-link">
+                        Страница {{ parent.number }} из {{ parent.paginator.num_pages }}
+                    </span>
+                </li>
+                
+                {% if parent.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ parent.next_page_number }}&{{ request.GET.urlencode|slice:'8:' }}">
+                        Вперед
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

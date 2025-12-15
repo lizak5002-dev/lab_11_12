@@ -1,0 +1,302 @@
+{% extends 'base.html' %}
+
+{% block title %}Отчет по группам - Детский сад{% endblock %}
+
+{% block page_title %}
+    <i class="bi bi-file-earmark-text me-2"></i>Отчет по группам
+{% endblock %}
+
+{% block page_actions %}
+    <div class="btn-group">
+        <a href="?{% if request.GET.year %}year={{ request.GET.year }}&{% endif %}{% if request.GET.age_category %}age_category={{ request.GET.age_category }}&{% endif %}format=pdf" 
+           class="btn btn-danger">
+            <i class="bi bi-file-pdf me-2"></i>PDF
+        </a>
+        <a href="?{% if request.GET.year %}year={{ request.GET.year }}&{% endif %}{% if request.GET.age_category %}age_category={{ request.GET.age_category }}&{% endif %}format=excel" 
+           class="btn btn-success">
+            <i class="bi bi-file-excel me-2"></i>Excel
+        </a>
+        <a href="?format=print" class="btn btn-secondary" onclick="window.print(); return false;">
+            <i class="bi bi-printer me-2"></i>Печать
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<!-- Фильтры отчета -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" action="{% url 'report_groups' %}" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Год:</label>
+                <select name="year" class="form-select" id="yearSelect">
+                    <option value="">Все годы</option>
+                    {% for year in years %}
+                        <option value="{{ year }}" {% if request.GET.year == year|stringformat:"s" %}selected{% endif %}>
+                            {{ year }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Возрастная категория:</label>
+                <select name="age_category" class="form-select" id="ageSelect">
+                    <option value="">Все категории</option>
+                    {% for category in age_categories %}
+                        <option value="{{ category }}" {% if request.GET.age_category == category %}selected{% endif %}>
+                            {{ category }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-funnel me-1"></i>Сформировать
+                </button>
+            </div>
+            <div class="col-md-4 d-flex justify-content-end">
+                <div class="btn-group" role="group">
+                        <!-- Кнопка для PDF -->
+                    <button type="button" class="btn btn-danger" id="generatePdfBtn">
+                        <i class="bi bi-file-pdf me-1"></i>PDF
+                    </button>
+                        <!-- Кнопка для Excel -->
+                    <button type="button" class="btn btn-success" id="generateExcelBtn">
+                        <i class="bi bi-file-excel me-1"></i>Excel
+                    </button>
+                  
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Статистика -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card bg-light">
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3 border-end">
+                        <h3 class="text-primary">{{ total_children|default:0 }}</h3>
+                        <p class="text-muted mb-0">Всего детей</p>
+                    </div>
+                    <div class="col-md-3 border-end">
+                        <h3 class="text-success">{{ groups|length|default:0 }}</h3>
+                        <p class="text-muted mb-0">Всего групп</p>
+                    </div>
+                    <div class="col-md-3 border-end">
+                        <h3 class="text-info">{{ avg_children_per_group|default:0|floatformat:1 }}</h3>
+                        <p class="text-muted mb-0">Среднее детей в группе</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h3 class="text-warning">{{ total_teachers|default:0 }}</h3>
+                        <p class="text-muted mb-0">Всего воспитателей</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Таблица отчета -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Группа</th>
+                        <th>Возрастная категория</th>
+                        <th>Год открытия</th>
+                        <th>Воспитатель</th>
+                        <th>Количество детей</th>
+                        <th>Средний возраст</th>
+                        <th>Заполненность</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for group in groups %}
+                    <tr>
+                        <td>
+                            <strong>{{ group.group_name|default:"Без названия" }}</strong>
+                            {% if group.pk %}
+                                <br><small class="text-muted">ID: {{ group.pk }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ group.age_category|default:"Не указана" }}</span>
+                        </td>
+                        <td>{{ group.start_year|default:"-" }}</td>
+                        <td>
+                            {% if group.teacher %}
+                                {{ group.teacher.last_name|default:"" }} {{ group.teacher.first_name|default:"" }}
+                                {% if group.teacher.experience %}
+                                    <br><small class="text-muted">Опыт: {{ group.teacher.experience }} лет</small>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">Не назначен</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-primary rounded-pill px-3 py-2" style="font-size: 1.1em;">
+                                {{ group.child_count|default:0 }}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            {% if group.child_count > 0 %}
+                                <!-- Можно вычислять на лету или использовать приблизительное значение -->
+                                <span class="badge bg-secondary">{{ group.age_category|default:"-" }}</span>
+                            {% else %}
+                                <span class="badge bg-light text-dark">Нет детей</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% with percent=group.child_count|default:0 %}
+                            <div class="progress" style="height: 25px;">
+                                {% if percent > 80 %}
+                                    <div class="progress-bar bg-success" role="progressbar" 
+                                         style="width: {% widthratio percent 1 1 %}%">
+                                        {% widthratio percent 1 1 %}%
+                                    </div>
+                                {% elif percent > 50 %}
+                                    <div class="progress-bar bg-warning" role="progressbar" 
+                                         style="width: {% widthratio percent 1 1 %}%">
+                                        {% widthratio percent 1 1 %}%
+                                    </div>
+                                {% else %}
+                                    <div class="progress-bar bg-danger" role="progressbar" 
+                                         style="width: {% widthratio percent 1 1 %}%">
+                                        {% widthratio percent 1 1 %}%
+                                    </div>
+                                {% endif %}
+                            </div>
+                            {% endwith %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            <i class="bi bi-emoji-frown display-4 text-muted"></i>
+                            <h4 class="mt-3">Данные не найдены</h4>
+                            <p class="text-muted">Измените параметры фильтрации</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <th colspan="4" class="text-end">ИТОГО:</th>
+                        <th class="text-center">{{ total_children|default:0 }}</th>
+                        <th colspan="2"></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        
+        <!-- График распределения -->
+        <div class="mt-5">
+            <h5 class="mb-3">
+                <i class="bi bi-bar-chart me-2"></i>Распределение детей по группам
+            </h5>
+            <canvas id="reportChart" height="100"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Дата и время формирования -->
+<div class="mt-3 text-end text-muted">
+    <small>
+        Отчет сформирован: {% now "d.m.Y H:i" %}<br>
+        Пользователь: {{ user.username }}
+    </small>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Функция для получения URL с текущими фильтрами
+    function getReportUrl(format) {
+        const year = document.getElementById('yearSelect').value;
+        const ageCategory = document.getElementById('ageSelect').value;
+        
+        let url = '';
+        
+        if (format === 'pdf') {
+            url = '{% url "report_groups_pdf" %}';
+        } else if (format === 'excel') {
+            url = '{% url "report_groups_excel" %}';
+        }
+        
+        // Добавляем параметры фильтров
+        const params = new URLSearchParams();
+        if (year) params.append('year', year);
+        if (ageCategory) params.append('age_category', ageCategory);
+        
+        const queryString = params.toString();
+        if (queryString) {
+            url += '?' + queryString;
+        }
+        
+        return url;
+    }
+    
+    // Обработчики для кнопок PDF/Excel (простой вариант - без AJAX)
+    document.getElementById('generatePdfBtn').addEventListener('click', function() {
+        window.location.href = getReportUrl('pdf');
+    });
+    
+    document.getElementById('generateExcelBtn').addEventListener('click', function() {
+        window.location.href = getReportUrl('excel');
+    });
+
+    // График распределения детей по группам
+    const reportCtx = document.getElementById('reportChart');
+    if (reportCtx && typeof Chart !== 'undefined') {
+        const groupNames = [];
+        const groupCounts = [];
+        
+        {% for group in groups %}
+            groupNames.push('{{ group.group_name|escapejs|default:"Группа" }}');
+            groupCounts.push({{ group.child_count|default:0 }});
+        {% endfor %}
+        
+        if (groupNames.length > 0) {
+            try {
+                new Chart(reportCtx.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: groupNames,
+                        datasets: [{
+                            label: 'Количество детей',
+                            data: groupCounts,
+                            backgroundColor: '#36A2EB'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    stepSize: 1
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Ошибка создания графика:', error);
+                reportCtx.parentElement.innerHTML = 
+                    '<div class="alert alert-warning">Не удалось создать график</div>';
+            }
+        } else {
+            reportCtx.parentElement.innerHTML = 
+                '<div class="alert alert-info">Нет данных для графика</div>';
+        }
+    }
+
+}); 
+</script>
+{% endblock %}
