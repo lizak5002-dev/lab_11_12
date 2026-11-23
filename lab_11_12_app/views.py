@@ -88,7 +88,7 @@ def child_list(request):
     
     # Фильтрация по группе
     group_filter = request.GET.get('group')
-    if group_filter:
+    if group_filter and group_filter.isdigit():
         children = children.filter(group_id=group_filter)
     
     # Поиск
@@ -855,7 +855,7 @@ def get_groups_report_data(request):
     year_filter = request.GET.get('year')
     age_category_filter = request.GET.get('age_category')
     
-    if year_filter and year_filter != '':
+    if year_filter and year_filter.isdigit():
         groups_list = groups_list.filter(start_year=int(year_filter))
     
     if age_category_filter and age_category_filter != '':
@@ -955,13 +955,47 @@ def start_report_generation(request):
     
     return JsonResponse({'status': 'error', 'message': 'Invalid request'})
 
+import os
+import platform
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+def _find_font(candidates):
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    raise FileNotFoundError(f"Не найден ни один из шрифтов: {candidates}")
+
 
 def generate_groups_pdf(groups):
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = 'attachment; filename="groups_report.pdf"'
-    
-    font_path = 'C:/Windows/Fonts/arial.ttf'
-    pdfmetrics.registerFont(TTFont('Arial', font_path))
+
+    if platform.system() == 'Windows':
+        regular_candidates = [
+            'C:/Windows/Fonts/arial.ttf',
+            'C:/Windows/Fonts/DejaVuSans.ttf',
+        ]
+        bold_candidates = [
+            'C:/Windows/Fonts/arialbd.ttf',
+            'C:/Windows/Fonts/DejaVuSans-Bold.ttf',
+        ]
+    else:
+        regular_candidates = [
+            '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+        ]
+        bold_candidates = [
+            '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+        ]
+
+    regular_font = _find_font(regular_candidates)
+    bold_font = _find_font(bold_candidates)
+
+    pdfmetrics.registerFont(TTFont('Arial', regular_font))
+    pdfmetrics.registerFont(TTFont('Arial-Bold', bold_font))
+
     font_name = 'Arial'
           
     # Используем BytesIO для создания PDF в памяти
@@ -1108,23 +1142,32 @@ def report_attendance(request):
 @login_required
 def report_attendance_pdf(request):
     """Скачать отчет по посещаемости в PDF"""
-    try:
-        # Регистрируем русский шрифт
-        font_path = os.path.join(settings.BASE_DIR, 'static', 'fonts', 'arial.ttf')
-        if os.path.exists(font_path):
-            pdfmetrics.registerFont(TTFont('Arial', font_path))
-            font_name = 'Arial'
-        else:
-            # Пробуем стандартный путь Windows
-            font_path = 'C:/Windows/Fonts/arial.ttf'
-            if os.path.exists(font_path):
-                pdfmetrics.registerFont(TTFont('Arial', font_path))
-                font_name = 'Arial'
-            else:
-                font_name = 'Helvetica'
-    except:
-        font_name = 'Helvetica'
+
+    if platform.system() == 'Windows':
+        regular_candidates = [
+                'C:/Windows/Fonts/arial.ttf',
+                'C:/Windows/Fonts/DejaVuSans.ttf',
+            ]
+        bold_candidates = [
+                'C:/Windows/Fonts/arialbd.ttf',
+                'C:/Windows/Fonts/DejaVuSans-Bold.ttf',
+            ]
+    else:
+        regular_candidates = [
+                '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+                '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+            ]
+        bold_candidates = [
+                '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+                '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+            ]
     
+    regular_font = _find_font(regular_candidates)
+    bold_font = _find_font(bold_candidates)
+    
+    pdfmetrics.registerFont(TTFont('Arial', regular_font))
+    pdfmetrics.registerFont(TTFont('Arial-Bold', bold_font))
+    font_name = 'Arial'
     # Получаем данные отчета
     stats, groups_stats, totals = get_attendance_report_data(request)
     

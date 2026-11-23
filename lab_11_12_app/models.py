@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 
 class Groups(models.Model):
     group_id = models.AutoField(primary_key=True)
@@ -8,7 +9,6 @@ class Groups(models.Model):
     teacher = models.ForeignKey('Teacher', on_delete=models.PROTECT)  
     
     class Meta:
-        managed = False
         db_table = 'groups'
         verbose_name = 'Группа'
         verbose_name_plural = 'Группы'
@@ -26,7 +26,6 @@ class Teacher(models.Model):
     experience = models.IntegerField()
     
     class Meta:
-        managed = False
         db_table = 'teacher'
         verbose_name = 'Воспитатель'
         verbose_name_plural = 'Воспитатели'
@@ -61,7 +60,6 @@ class Child(models.Model):
     group = models.ForeignKey('Groups', on_delete=models.PROTECT, verbose_name="Группа")  
     
     class Meta:
-        managed = False
         db_table = 'child'
         verbose_name = 'Ребенок'
         verbose_name_plural = 'Дети'
@@ -70,6 +68,28 @@ class Child(models.Model):
         if self.second_name:
             return f"{self.last_name} {self.first_name} {self.second_name}"
         return f"{self.last_name} {self.first_name}"
+
+    def clean(self):
+        super().clean()
+        from datetime import date
+
+        # Дата рождения не может быть в будущем
+        if self.birth_date and self.birth_date > date.today():
+            raise ValidationError({
+                'birth_date': 'Дата рождения не может быть в будущем.'
+            })
+
+        # Дата поступления не может быть в будущем
+        if self.start_date and self.start_date > date.today():
+            raise ValidationError({
+                'start_date': 'Дата поступления не может быть в будущем.'
+            })
+
+        # Дата поступления должна быть строго позже даты рождения
+        if self.birth_date and self.start_date and self.birth_date >= self.start_date:
+            raise ValidationError({
+                'start_date': 'Дата поступления должна быть позже даты рождения.'
+            })
     
     @property
     def full_name(self):
@@ -101,7 +121,6 @@ class Attendance(models.Model):
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, verbose_name="Статус")
     
     class Meta:
-        managed = False
         db_table = 'attendance'
         unique_together = (('child', 'date'),)
         verbose_name = 'Посещаемость'
@@ -120,7 +139,6 @@ class Parent(models.Model):
     email = models.CharField(max_length=100)
     
     class Meta:
-        managed = False
         db_table = 'parent'
         verbose_name = 'Родитель'
         verbose_name_plural = 'Родители'
@@ -159,7 +177,6 @@ class ParentChild(models.Model):
     )
     
     class Meta:
-        managed = False
         db_table = 'parent_child'
         verbose_name = 'Связь родитель-ребенок'
         verbose_name_plural = 'Связи родитель-ребенок'
